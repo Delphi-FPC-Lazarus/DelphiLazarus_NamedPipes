@@ -2,17 +2,16 @@ object frmPipeTest: TfrmPipeTest
   Left = 0
   Top = 0
   Caption = 'frmPipeTest'
-  ClientHeight = 602
-  ClientWidth = 927
+  ClientHeight = 601
+  ClientWidth = 923
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
   OnCloseQuery = FormCloseQuery
-  PixelsPerInch = 96
+  OnCreate = FormCreate
   TextHeight = 13
   object GroupBox1: TGroupBox
     Left = 8
@@ -22,11 +21,18 @@ object frmPipeTest: TfrmPipeTest
     Caption = 'Server'
     TabOrder = 0
     object lblclientcount: TLabel
-      Left = 16
+      Left = 90
       Top = 64
       Width = 62
       Height = 13
       Caption = 'lblclientcount'
+    end
+    object Label2: TLabel
+      Left = 19
+      Top = 64
+      Width = 32
+      Height = 13
+      Caption = 'Clients'
     end
     object cbPipeServerAktiv: TCheckBox
       Left = 16
@@ -45,6 +51,20 @@ object frmPipeTest: TfrmPipeTest
     Height = 497
     Caption = 'Client'
     TabOrder = 1
+    object lblmessagecount: TLabel
+      Left = 178
+      Top = 25
+      Width = 79
+      Height = 13
+      Caption = 'lblmessagecount'
+    end
+    object Label3: TLabel
+      Left = 107
+      Top = 25
+      Width = 47
+      Height = 13
+      Caption = 'Messages'
+    end
     object btnClientStart: TButton
       Left = 16
       Top = 24
@@ -80,29 +100,37 @@ object frmPipeTest: TfrmPipeTest
       TabOrder = 3
       OnClick = btnClientStopClick
     end
+  end
+  object GroupBox3: TGroupBox
+    Left = 648
+    Top = 8
+    Width = 225
+    Height = 233
+    Caption = 'Client (weiterer) dyn. erzeugt'
+    TabOrder = 2
+    object btnTest1: TButton
+      Left = 24
+      Top = 20
+      Width = 76
+      Height = 25
+      Caption = 'btnTest1'
+      TabOrder = 0
+      OnClick = btnTest1Click
+    end
     object btnTest2: TButton
-      Left = 120
-      Top = 55
+      Left = 24
+      Top = 51
       Width = 75
       Height = 25
       Caption = 'btnTest2'
-      TabOrder = 4
+      TabOrder = 1
       OnClick = btnTest2Click
-    end
-    object btnTest1: TButton
-      Left = 120
-      Top = 24
-      Width = 75
-      Height = 25
-      Caption = 'btnTest1'
-      TabOrder = 5
-      OnClick = btnTest1Click
     end
   end
   object TimerClientcount: TTimer
     Interval = 100
     OnTimer = TimerClientcountTimer
-    Left = 24
-    Top = 104
+    Left = 56
+    Top = 112
   end
 end

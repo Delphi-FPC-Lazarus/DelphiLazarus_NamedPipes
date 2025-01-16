@@ -16,10 +16,14 @@ type
     ListBoxReceived: TListBox;
     btnClientSenden: TButton;
     btnClientStop: TButton;
-    btnTest2: TButton;
-    btnTest1: TButton;
     TimerClientcount: TTimer;
     lblclientcount: TLabel;
+    GroupBox3: TGroupBox;
+    btnTest1: TButton;
+    btnTest2: TButton;
+    Label2: TLabel;
+    lblmessagecount: TLabel;
+    Label3: TLabel;
     procedure cbPipeServerAktivClick(Sender: TObject);
     procedure btnClientStopClick(Sender: TObject);
     procedure btnClientSendenClick(Sender: TObject);
@@ -28,9 +32,11 @@ type
     procedure TimerClientcountTimer(Sender: TObject);
     procedure btnTest1Click(Sender: TObject);
     procedure btnTest2Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private-Deklarationen }
-    FReceived: string;
+    FClientMessageCount:integer;
+    FClientReceived: string;
     procedure OutputReceived(Var aMsg: tMessage); message WM_USER + 1;
   private
     procedure DoOnServerReceive(Sender: TThread;
@@ -100,7 +106,9 @@ end;
 
 procedure TfrmPipeTest.OutputReceived(Var aMsg: tMessage);
 begin
-  ListBoxReceived.Items.Add(FReceived);
+  inc(FClientMessageCount);
+  lblmessagecount.Caption := inttostr(FClientMessageCount);
+  ListBoxReceived.Items.Add(FClientReceived);
 end;
 
 procedure TfrmPipeTest.TimerClientcountTimer(Sender: TObject);
@@ -115,20 +123,25 @@ procedure TfrmPipeTest.btnClientSendenClick(Sender: TObject);
 var
   s: AnsiString;
   SendStream: TMemoryStream;
+  i: Integer;
 begin
   if not Assigned(PipeClient) then
     exit;
 
-  // hier könnte ein beliebiger Memorystream gesendet werden
-  // für den Test einfach ein nullterminierter String, könnte aber auch ein Binary file sein
-  SendStream := TMemoryStream.Create;
-  try
-    s := 'Das ist ein Test ' + AnsiString(inttostr(random(100))) + #0;
-    SendStream.Write(s[Low(s)], length(s));
-    PipeClient.SendStream(SendStream);
-  finally
-    FreeAndNil(SendStream);
+  for i := 1 to 5 do begin
+    // hier könnte ein beliebiger Memorystream gesendet werden
+    // für den Test einfach ein nullterminierter String, könnte aber auch ein Binary file sein
+    // Wenn sich die Pipe im Messagemode befindet, werden diese Messages einzeln vom Pipeserver empfangen und verarbeitet
+    SendStream := TMemoryStream.Create;
+    try
+      s := 'Das ist ein Test ' + AnsiString(inttostr(random(100))) + #0;
+      SendStream.Write(s[Low(s)], length(s));
+      PipeClient.SendStream(SendStream);
+    finally
+      FreeAndNil(SendStream);
+    end;
   end;
+
 end;
 
 procedure TfrmPipeTest.btnTest1Click(Sender: TObject);
@@ -179,8 +192,8 @@ begin
   SetLength(s, ReceivedStream.Size);
   ReceivedStream.Read(s[Low(s)], ReceivedStream.Size);
 
-  // Ausgabe im MainThread
-  FReceived := string(s);
+  // Ausgabe im MainThread (hier quick and dirty, nicht threadsave, hier üsse die nachricht in eine lokale queue gelegt oder sofort verarbeitet werden)
+  FClientReceived := string(s);
   PostMessage(handle, WM_USER + 1, 0, 0);
 end;
 
@@ -190,6 +203,12 @@ procedure TfrmPipeTest.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   // CanClose:= not cbPipeServerAktiv.Checked;
   CanClose := true;
+end;
+
+procedure TfrmPipeTest.FormCreate(Sender: TObject);
+begin
+  FClientMessageCount:= 0;
+  FClientReceived:= '';
 end;
 
 initialization
