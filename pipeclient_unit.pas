@@ -156,12 +156,6 @@ begin
   if hPipeHandle <> INVALID_HANDLE_VALUE then
   begin
     (*
-      https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-disconnectnamedpipe
-      Disconnects the server end of a named pipe instance from a client process.
-    *)
-    // DisconnectNamedPipe(hPipeHandle);
-
-    (*
       https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
       Closes an open object handle.
     *)

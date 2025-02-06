@@ -73,11 +73,19 @@ end;
 
 procedure TfrmPipeTest.DoOnServerReceive(Sender: TThread;
   ReceivedStream, SendStream: TMemoryStream);
+(*Debug var s:AnsiString;*)
 begin
   // Datenevent des Servers
   // ACHTUNG: hier bin ich noch im Thread, daher kann hier nicht unsynchronisiert auf die UI zugegriffen werden
   // Hier im Testprogramm, einfach Echo
   SendStream.CopyFrom(ReceivedStream, SendStream.Size);
+
+  (* Debug
+  SendStream.Position:= 0;
+  SetLength(s, SendStream.Size);
+  SendStream.Read(s[Low(s)], SendStream.Size);
+  SendStream.Position:= 0;
+  *)
 end;
 
 // ==============================================================================

@@ -59,7 +59,7 @@ end;
 
 procedure TfrmPipeTest.FormCreate(Sender: TObject);
 begin
-  Caption:= csPipeName;
+  Caption := csPipeName;
 
   FPipeClient := nil;
   FClientMessageCount := 0;
@@ -167,7 +167,7 @@ var
   i: integer;
   Client: TPipeClientSimple;
   s: AnsiString;
-  DataStream: TMemoryStream;
+  SendDataStream, ReceivedDataStream: TMemoryStream;
 begin
   FreeOnTerminate := true;
 
@@ -176,22 +176,32 @@ begin
     for i := 1 to 100 do
     begin
       // Senden
-      DataStream := TMemoryStream.Create;
+      SendDataStream := TMemoryStream.Create;
       try
         s := AnsiString(format('Test %d aus Thread %d', [i, self.ThreadID]));
-        DataStream.Write(s[Low(s)], length(s));
-        Client.SendStream(DataStream);
-      finally
-        FreeAndNil(DataStream);
-      end;
+        SendDataStream.Write(s[Low(s)], length(s));
+        Client.SendStream(SendDataStream);
 
-      // Empfangen
-      repeat
-        DataStream := Client.ReceiveStream;
-      until Assigned(DataStream);
-      // Quick & dirty ausgeben
-      PostMessage(application.MainForm.handle, WM_OUTPUTRECEIVED, 0,
-        LParam(DataStream));
+        // Empfangen
+        repeat
+          ReceivedDataStream := Client.ReceiveStream;
+        until Assigned(ReceivedDataStream);
+
+        // Prüfen
+        if (SendDataStream.Size <> ReceivedDataStream.Size) or
+          (CompareMem(SendDataStream.Memory, ReceivedDataStream.Memory,
+          SendDataStream.Size) = false) then
+        begin
+          raise Exception.Create('Comparemem Fehler!');
+        end;
+
+        // Quick & dirty ausgeben
+        PostMessage(application.MainForm.handle, WM_OUTPUTRECEIVED, 0,
+          LParam(ReceivedDataStream));
+      finally
+        FreeAndNil(SendDataStream);
+        //ReceivedDataStream wurd übergeben und muss vom empfänger verarbeitet und freigegeben werden
+      end;
     end;
   finally
     FreeAndNil(Client);
