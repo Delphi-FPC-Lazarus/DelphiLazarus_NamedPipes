@@ -13,6 +13,7 @@ object frmPipeTest: TfrmPipeTest
   Font.Style = []
   OldCreateOrder = True
   OnCloseQuery = FormCloseQuery
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object GroupBox1: TGroupBox

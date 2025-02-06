@@ -3,8 +3,7 @@ program Test_PipeClient;
 uses
   Vcl.Forms,
   UnitClient in 'UnitClient.pas' {frmPipeTest},
-  pipeclient_unit in '..\pipeclient_unit.pas',
-  pipeclientsimple_unit in '..\pipeclientsimple_unit.pas';
+  pipeclient_unit in '..\pipeclient_unit.pas';
 
 {$R *.res}
 

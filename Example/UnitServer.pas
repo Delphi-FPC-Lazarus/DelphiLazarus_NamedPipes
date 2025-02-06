@@ -3,9 +3,13 @@ unit UnitServer;
 interface
 
 uses
+  pipeserver_unit,
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
+
+const
+  csPipeName: string = 'TestPipe';
 
 type
   TfrmPipeTest = class(TForm)
@@ -17,8 +21,10 @@ type
     procedure cbPipeServerAktivClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure TimerClientcountTimer(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private-Deklarationen }
+    FPipeServer: TPipeServer;
   private
     procedure DoOnServerReceive(Sender: TThread;
       ReceivedStream, SendStream: TMemoryStream);
@@ -31,29 +37,37 @@ var
 
 implementation
 
-uses pipeserver_unit;
-
 {$R *.dfm}
 
-const
-  csPipeName: string = 'TestPipe';
+// ==============================================================================
 
-var
-  PipeServer: TPipeServer = nil;
+procedure TfrmPipeTest.FormCreate(Sender: TObject);
+begin
+  Caption := csPipeName;
 
-  // ==============================================================================
+  FPipeServer:= nil;
+end;
+
+procedure TfrmPipeTest.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  // CanClose:= not cbPipeServerAktiv.Checked;
+  FreeAndNil(FPipeServer);
+  CanClose := true;
+end;
+
+// ==============================================================================
 
 procedure TfrmPipeTest.cbPipeServerAktivClick(Sender: TObject);
 begin
   if cbPipeServerAktiv.Checked then
   begin
-    PipeServer := TPipeServer.Create(csPipeName);
-    PipeServer.OnReceive := DoOnServerReceive;
-    PipeServer.Start;
+    FPipeServer := TPipeServer.Create(csPipeName);
+    FPipeServer.OnReceive := DoOnServerReceive;
+    FPipeServer.Start;
   end
   else
   begin
-    FreeAndNil(PipeServer);
+    FreeAndNil(FPipeServer);
   end;
 end;
 
@@ -70,24 +84,12 @@ end;
 
 procedure TfrmPipeTest.TimerClientcountTimer(Sender: TObject);
 begin
-  if Assigned(PipeServer) then
+  if Assigned(FPipeServer) then
   begin
-    lblclientcount.Caption := inttostr(PipeServer.ClientCount);
+    lblclientcount.Caption := inttostr(FPipeServer.ClientCount);
   end;
 end;
 
 // ==============================================================================
-
-procedure TfrmPipeTest.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
-begin
-  // CanClose:= not cbPipeServerAktiv.Checked;
-  CanClose := true;
-end;
-
-initialization
-
-finalization
-
-FreeAndNil(PipeServer);
 
 end.

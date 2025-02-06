@@ -31,6 +31,32 @@ type
   TPipeClientDataEvent = procedure(Sender: TThread;
     ReceivedStream: TMemoryStream) of object;
 
+  // Pipe Handling
+  TPipeClientHelper = class(TObject)
+  public
+    class function PipeClientCreateInstance(sPipeName: string): THandle;
+    class procedure PipeClientCloseInstance(hPipeHandle: THandle);
+    class procedure PipeClientSendStream(hPipeHandle: THandle;
+      SendStream: TMemoryStream);
+    class function PipeClientCheckReceive(hPipeHandle: THandle): TMemoryStream;
+  end;
+
+  // Einfacher Client zum Senden/Empfangen
+  TPipeClientSimple = class(TObject)
+  private
+    FPipeName: string;
+    FPipeHandleClient: THandle;
+  private
+  protected
+  public
+    constructor Create(PipeClientPipeName: string);
+    destructor Destroy; override;
+
+    procedure SendStream(SendStream: TMemoryStream);
+    function ReceiveStream: TMemoryStream;
+  end;
+
+  // Thread Client mit Datenevent
   TPipeClient = class(TThread)
   private
     FPipeName: string;
@@ -38,10 +64,6 @@ type
     FbFinished: Boolean;
     FPipeClientDataEvent: TPipeClientDataEvent;
   private
-    // Pipe
-    procedure PipeClientCreateInstance;
-    procedure PipeClientCloseInstance;
-    procedure PipeClientCheckReceive;
   protected
     function GetTerminated: Boolean;
     procedure Execute; override;
@@ -63,29 +85,10 @@ resourcestring
 
 implementation
 
-constructor TPipeClient.Create(PipeClientPipeName: string);
-begin
-  inherited Create(true);
-  FPipeName := PipeClientPipeName;
-  FbFinished := false;
-  FPipeClientDataEvent := nil;
+// ================================================================
 
-  // Pipe verbinden
-  FPipeHandleClient := INVALID_HANDLE_VALUE;
-  PipeClientCreateInstance;
-
-  // Start;
-end;
-
-destructor TPipeClient.Destroy;
-begin
-  // Pipe Trennen
-  PipeClientCloseInstance;
-
-  inherited;
-end;
-
-procedure TPipeClient.PipeClientCreateInstance;
+class function TPipeClientHelper.PipeClientCreateInstance
+  (sPipeName: string): THandle;
 var
   FSA: SECURITY_ATTRIBUTES;
   FSD: SECURITY_DESCRIPTOR;
@@ -93,6 +96,8 @@ var
 
   I: Integer;
 begin
+  Result := INVALID_HANDLE_VALUE;
+
   (*
     https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-initializesecuritydescriptor
     The InitializeSecurityDescriptor function initializes a new security descriptor.
@@ -108,8 +113,7 @@ begin
   FSA.bInheritHandle := true;
 
   I := 0;
-  FPipeHandleClient := INVALID_HANDLE_VALUE;
-  while (FPipeHandleClient = INVALID_HANDLE_VALUE) and (I < 10) do
+  while (Result = INVALID_HANDLE_VALUE) and (I < 25) do
   begin
     (*
       https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
@@ -119,8 +123,8 @@ begin
       The function returns a handle that can be used to access the file or device for various types of I/O depending
       on the file or device and the flags and attributes specified.
     *)
-    FPipeHandleClient := CreateFile(PChar('\\.\pipe\' + FPipeName),
-      GENERIC_READ or GENERIC_WRITE, // Lesen/Schreiben
+    Result := CreateFile(PChar('\\.\pipe\' + sPipeName), GENERIC_READ or
+      GENERIC_WRITE, // Lesen/Schreiben
       0, // kein Sharing
       @FSA, // Attribute (Sicherheit)
       OPEN_EXISTING, // nur auf vorhandene Pipe verbinden
@@ -139,77 +143,126 @@ begin
     end;
   end;
 
-  if FPipeHandleClient = INVALID_HANDLE_VALUE then
+  if Result = INVALID_HANDLE_VALUE then
     raise Exception.Create(rsCouldNotConnectInterfacePipe);
 end;
 
-procedure TPipeClient.PipeClientCloseInstance;
+class procedure TPipeClientHelper.PipeClientCloseInstance(hPipeHandle: THandle);
 begin
-  if FPipeHandleClient <> INVALID_HANDLE_VALUE then
+  if hPipeHandle <> INVALID_HANDLE_VALUE then
   begin
     (*
       https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-disconnectnamedpipe
       Disconnects the server end of a named pipe instance from a client process.
     *)
-    DisconnectNamedPipe(FPipeHandleClient);
+    // DisconnectNamedPipe(hPipeHandle);
+
     (*
       https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
       Closes an open object handle.
     *)
-    CloseHandle(FPipeHandleClient);
-
-    FPipeHandleClient := INVALID_HANDLE_VALUE;
+    CloseHandle(hPipeHandle);
   end;
 end;
 
-procedure TPipeClient.PipeClientCheckReceive;
+class function TPipeClientHelper.PipeClientCheckReceive(hPipeHandle: THandle)
+  : TMemoryStream;
 var
   lpTotalBytesAvail, lpBytesLeftThisMessage: DWORD;
   dw: DWORD;
-  rcv: TMemoryStream;
 begin
+  Result := nil;
   (*
     https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-peeknamedpipe
     Copies data from a named or anonymous pipe into a buffer without removing it from the pipe. It also returns information about data in the pipe.
   *)
-  if PeekNamedPipe(FPipeHandleClient, nil, 0, nil, @lpTotalBytesAvail,
+  if PeekNamedPipe(hPipeHandle, nil, 0, nil, @lpTotalBytesAvail,
     @lpBytesLeftThisMessage) then
   begin
     // lpTotalBytesAvail kann größer sein wenn mehr messages anstehen
     if (lpBytesLeftThisMessage > 0) then
     begin
-      rcv := TMemoryStream.Create;
-      try
-        rcv.SetSize(lpBytesLeftThisMessage);
-        (*
-          https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile
-          Reads data from the specified file or input/output (I/O) device. Reads occur at the position specified by the file pointer if supported by the device.
-        *)
-        ReadFile(FPipeHandleClient, rcv.Memory^,
-          lpBytesLeftThisMessage, dw, nil);
-        if Assigned(FPipeClientDataEvent) then
-        begin
-          FPipeClientDataEvent(self, rcv);
-        end;
-      finally
-        FreeAndNil(rcv);
-      end;
+      Result := TMemoryStream.Create;
+      Result.SetSize(lpBytesLeftThisMessage);
+      (*
+        https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile
+        Reads data from the specified file or input/output (I/O) device. Reads occur at the position specified by the file pointer if supported by the device.
+      *)
+      ReadFile(hPipeHandle, Result.Memory^, lpBytesLeftThisMessage, dw, nil);
     end;
   end;
 end;
 
-procedure TPipeClient.SendStream(SendStream: TMemoryStream);
+class procedure TPipeClientHelper.PipeClientSendStream(hPipeHandle: THandle;
+  SendStream: TMemoryStream);
 var
   dw: DWORD;
 begin
-  if FPipeHandleClient <> INVALID_HANDLE_VALUE then
+  if hPipeHandle <> INVALID_HANDLE_VALUE then
   begin
     (*
       https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
       Writes data to the specified file or input/output (I/O) device.
     *)
-    WriteFile(FPipeHandleClient, SendStream.Memory^, SendStream.Size, dw, nil);
+    WriteFile(hPipeHandle, SendStream.Memory^, SendStream.Size, dw, nil);
   end;
+end;
+
+
+// ================================================================
+
+constructor TPipeClientSimple.Create(PipeClientPipeName: string);
+begin
+  inherited Create;
+  FPipeName := PipeClientPipeName;
+  FPipeHandleClient := INVALID_HANDLE_VALUE;
+
+  // Pipe verbinden
+  FPipeHandleClient := TPipeClientHelper.PipeClientCreateInstance(FPipeName);
+end;
+
+destructor TPipeClientSimple.Destroy;
+begin
+  // Pipe Trennen
+  TPipeClientHelper.PipeClientCloseInstance(FPipeHandleClient);
+  FPipeHandleClient := INVALID_HANDLE_VALUE;
+
+  inherited;
+end;
+
+procedure TPipeClientSimple.SendStream(SendStream: TMemoryStream);
+begin
+  TPipeClientHelper.PipeClientSendStream(FPipeHandleClient, SendStream);
+end;
+
+function TPipeClientSimple.ReceiveStream: TMemoryStream;
+begin
+  Result := TPipeClientHelper.PipeClientCheckReceive(FPipeHandleClient);
+end;
+
+// ================================================================
+
+constructor TPipeClient.Create(PipeClientPipeName: string);
+begin
+  inherited Create(true);
+  FPipeName := PipeClientPipeName;
+  FPipeHandleClient := INVALID_HANDLE_VALUE;
+  FbFinished := false;
+  FPipeClientDataEvent := nil;
+
+  // Pipe verbinden
+  FPipeHandleClient := TPipeClientHelper.PipeClientCreateInstance(FPipeName);
+
+  // Start;
+end;
+
+destructor TPipeClient.Destroy;
+begin
+  // Pipe Trennen
+  TPipeClientHelper.PipeClientCloseInstance(FPipeHandleClient);
+  FPipeHandleClient := INVALID_HANDLE_VALUE;
+
+  inherited;
 end;
 
 function TPipeClient.GetTerminated: Boolean;
@@ -217,9 +270,15 @@ begin
   Result := inherited Terminated or FbFinished;
 end;
 
+procedure TPipeClient.SendStream(SendStream: TMemoryStream);
+begin
+  TPipeClientHelper.PipeClientSendStream(FPipeHandleClient, SendStream);
+end;
+
 procedure TPipeClient.Execute;
 var
   LERR: DWORD;
+  rcvStream: TMemoryStream;
 begin
   // nicht eigenständig auflösen, darum kümmert sich der Ersteller
   FreeOnTerminate := false;
@@ -231,14 +290,29 @@ begin
   begin
     if FPipeHandleClient = INVALID_HANDLE_VALUE then
       break;
-    PipeClientCheckReceive;
 
-    sleep(10);
+    rcvStream := nil;
+    try
+      rcvStream := TPipeClientHelper.PipeClientCheckReceive(FPipeHandleClient);
+      if Assigned(rcvStream) then
+      begin
+        if Assigned(FPipeClientDataEvent) then
+        begin
+          FPipeClientDataEvent(self, rcvStream);
+        end;
+      end;
+    finally
+      FreeAndNil(rcvStream);
+    end;
+
+    sleep(1);
 
     // wegen Abbruchprüfung immer den GetLastError prüfen (im Leerlauf durch PeekNamedPipe ausgelöst)
     LERR := GetLastError;
   end;
   FbFinished := true;
 end;
+
+// ================================================================
 
 end.

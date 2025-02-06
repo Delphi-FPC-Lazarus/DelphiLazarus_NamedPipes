@@ -2,10 +2,11 @@
 <BorlandProject>
 	<Transactions>
     <Transaction>1899.12.30 00:00:00.000.573,D:\Data_Github\DelphiLazarus_NamedPipes\pipeserver_unit.pas=</Transaction>
-    <Transaction>1899.12.30 00:00:00.000.260,D:\Data_Github\DelphiLazarus_NamedPipes\Example2\Test_PipeServer.dproj=D:\Data_Github\DelphiLazarus_NamedPipes\Example2\Test_PipeClient.dproj</Transaction>
     <Transaction>1899.12.30 00:00:00.000.625,D:\Data_Github\DelphiLazarus_NamedPipes\Example2\Unit1.pas=D:\Data_Github\DelphiLazarus_NamedPipes\Example2\UnitClient.pas</Transaction>
     <Transaction>1899.12.30 00:00:00.000.625,D:\Data_Github\DelphiLazarus_NamedPipes\Example2\Unit1.dfm=D:\Data_Github\DelphiLazarus_NamedPipes\Example2\UnitClient.dfm</Transaction>
-    <Transaction>2025.02.06 09:07:14.136,=D:\Data_Github\DelphiLazarus_NamedPipes\Example\Unit1.pas</Transaction>
-    <Transaction>2025.02.06 09:07:24.492,D:\Data_Github\DelphiLazarus_NamedPipes\pipeclientsimple_unit.pas=D:\Data_Github\DelphiLazarus_NamedPipes\Example\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.779,D:\Data_Github\DelphiLazarus_NamedPipes\pipeclientsimple_unit.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.260,D:\Data_Github\DelphiLazarus_NamedPipes\Example2\Test_PipeServer.dproj=D:\Data_Github\DelphiLazarus_NamedPipes\Example2\Test_PipeClient.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.136,=D:\Data_Github\DelphiLazarus_NamedPipes\Example\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.492,D:\Data_Github\DelphiLazarus_NamedPipes\pipeclientsimple_unit.pas=D:\Data_Github\DelphiLazarus_NamedPipes\Example\Unit1.pas</Transaction>
   </Transactions>
 </BorlandProject>

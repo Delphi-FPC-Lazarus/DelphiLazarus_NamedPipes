@@ -75,6 +75,8 @@ resourcestring
 
 implementation
 
+// ================================================================
+
 constructor TPipeServer.Create(PipeServerPipeName: string);
 begin
   inherited Create(true);
@@ -213,7 +215,7 @@ begin
   CurrentPendingPipeServerHandle := INVALID_HANDLE_VALUE;
   while not Terminated do
   begin
-    // Pipe Instanz aufbauen
+    // Neue Pipe Instanz aufbauen
     CurrentPendingPipeServerHandle := PipeServerCreateInstance;
     // LERR := GetLastError; ERROR_PIPE_BUSY möglich wenn Instanzen begrenzt, dann gibt es aber auch keine Handle
     if CurrentPendingPipeServerHandle <> INVALID_HANDLE_VALUE then
@@ -238,16 +240,18 @@ begin
           ERROR_PIPE_CONNECTED:
             begin
               // Client hat verbunden
-              // Aktuelle Instanz an Instanz Thread übergeben
+              // Aktuellen Client Handle an eigenen Thread übergeben der sich um diesen client kümmert
               PipeServerCreateIOHandler(CurrentPendingPipeServerHandle);
+              // hier vergesse ich diesen handle da dieser nun vom IO Handler abgehandelt wird
               CurrentPendingPipeServerHandle := INVALID_HANDLE_VALUE;
+              // zurück zur übergeordneten threadschleife damit eine neue Instanz erzeugt wird
               break;
             end;
         end;
-        sleep(10);
+        sleep(1);
       end;
     end;
-    sleep(10);
+    sleep(1);
   end;
 
   // Aktuell wartende Pipe Instance schließen, damit kann auch keine neuer IOHandler mehr aufgebaut werden
@@ -312,8 +316,9 @@ begin
             https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile
             Reads data from the specified file or input/output (I/O) device. Reads occur at the position specified by the file pointer if supported by the device.
           *)
-          ReadFile(FPipeHandleServer, rcv.Memory^,
-            lpBytesLeftThisMessage, dw, nil);
+          if not ReadFile(FPipeHandleServer, rcv.Memory^,
+            lpBytesLeftThisMessage, dw, nil) then
+            raise Exception.Create('Read error');
 
           if Assigned(FPipeServerDataEvent) then
           begin
@@ -326,7 +331,9 @@ begin
           *)
           if snd.Size > 0 then
           begin
-            WriteFile(FPipeHandleServer, snd.Memory^, snd.Size, dw, nil);
+            if not WriteFile(FPipeHandleServer, snd.Memory^, snd.Size, dw, nil)
+            then
+              raise Exception.Create('Write error');
           end;
         finally
           FreeAndNil(rcv);
@@ -341,5 +348,7 @@ begin
     LERR := GetLastError;
   end;
 end;
+
+// ================================================================
 
 end.

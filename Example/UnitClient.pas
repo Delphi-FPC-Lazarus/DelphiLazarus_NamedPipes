@@ -3,13 +3,16 @@ unit UnitClient;
 interface
 
 uses
+  pipeclient_unit,
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
   Vcl.Samples.Spin;
 
+const
+  WM_OUTPUTRECEIVED = WM_USER + 1309;
+  csPipeName: string = 'TestPipe';
 
-const WM_OUTPUTRECEIVED = WM_USER + 1309;
 type
   TfrmPipeTest = class(TForm)
     GroupBox2: TGroupBox;
@@ -30,10 +33,11 @@ type
     procedure btnThreadedClick(Sender: TObject);
   private
     { Private-Deklarationen }
+    FPipeClient: TPipeClient;
     FClientMessageCount: integer;
-    procedure OutputReceived(Var aMsg: tMessage); message WM_OUTPUTRECEIVED;
-  private
     procedure DoOnClientReceive(Sender: TThread; ReceivedStream: TMemoryStream);
+  private
+    procedure OutputReceived(Var aMsg: tMessage); message WM_OUTPUTRECEIVED;
   public
     { Public-Deklarationen }
   end;
@@ -43,33 +47,41 @@ var
 
 implementation
 
-uses pipeclient_unit;
-
 {$R *.dfm}
+// ==============================================================================
 
-const
-  csPipeName: string = 'TestPipe';
+procedure TfrmPipeTest.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  // CanClose:= not cbPipeServerAktiv.Checked;
+  FreeAndNil(FPipeClient);
+  CanClose := true;
+end;
 
-var
-  PipeClient: TPipeClient = nil;
+procedure TfrmPipeTest.FormCreate(Sender: TObject);
+begin
+  Caption:= csPipeName;
 
-  // ==============================================================================
+  FPipeClient := nil;
+  FClientMessageCount := 0;
+end;
+
+// ==============================================================================
 
 procedure TfrmPipeTest.btnClientErzeugenClick(Sender: TObject);
 begin
   // Hier im Test nur ein Client, können aber auch mehrere sein
-  if Assigned(PipeClient) then
+  if Assigned(FPipeClient) then
   begin
-    FreeAndNil(PipeClient);
+    FreeAndNil(FPipeClient);
   end;
-  PipeClient := TPipeClient.Create(csPipeName);
-  PipeClient.OnReceive := DoOnClientReceive;
-  PipeClient.Start;
+  FPipeClient := TPipeClient.Create(csPipeName);
+  FPipeClient.OnReceive := DoOnClientReceive;
+  FPipeClient.Start;
 end;
 
 procedure TfrmPipeTest.btnClientFreigebenClick(Sender: TObject);
 begin
-  FreeAndNil(PipeClient);
+  FreeAndNil(FPipeClient);
 end;
 
 procedure TfrmPipeTest.btnClientSendenClick(Sender: TObject);
@@ -78,7 +90,7 @@ var
   SendStream: TMemoryStream;
   i: integer;
 begin
-  if not Assigned(PipeClient) then
+  if not Assigned(FPipeClient) then
     exit;
 
   for i := 1 to 5 do
@@ -101,29 +113,25 @@ begin
             SendStream.Seek(0, soFromBeginning);
           end;
       end;
-      PipeClient.SendStream(SendStream);
+      FPipeClient.SendStream(SendStream);
     finally
       FreeAndNil(SendStream);
     end;
   end;
 end;
 
-procedure TfrmPipeTest.btnThreadedClick(Sender: TObject);
-begin
-  // Todo
-end;
-
 procedure TfrmPipeTest.DoOnClientReceive(Sender: TThread;
   ReceivedStream: TMemoryStream);
-var DataStream:TMemoryStream;
+var
+  DataStream: TMemoryStream;
 begin
   // Datenevent des Cleints, hier bin ich noch im Thread
   // ACHTUNG: hier bin ich noch im Thread, daher kann hier nicht unsynchronisiert auf die UI zugegriffen werden
   // Hier im Testprogramm Übergabe an den Mainthread für die Ausgabe
-  ReceivedStream.Position:= 0;
-  DataStream:= TMemoryStream.Create;
+  ReceivedStream.Position := 0;
+  DataStream := TMemoryStream.Create;
   DataStream.LoadFromStream(ReceivedStream);
-  DataStream.Position:= 0;
+  DataStream.Position := 0;
   PostMessage(handle, WM_OUTPUTRECEIVED, 0, LParam(DataStream));
 end;
 
@@ -136,8 +144,9 @@ begin
   lblmessagecount.Caption := inttostr(FClientMessageCount);
 
   // hier könnte ein beliebiger Memorystream empfangen werden, ich geb ihn einfach als text aus
-  DataStream:= TMemoryStream(aMsg.LParam);
-  if Assigned(DataStream) then begin
+  DataStream := TMemoryStream(aMsg.LParam);
+  if Assigned(DataStream) then
+  begin
     SetLength(s, DataStream.Size);
     DataStream.Read(s[Low(s)], DataStream.Size);
     FreeAndNil(DataStream);
@@ -147,21 +156,60 @@ end;
 
 // ==============================================================================
 
-procedure TfrmPipeTest.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+type
+  TTestThread = Class(TThread)
+  public
+    procedure Execute; override;
+  End;
+
+procedure TTestThread.Execute;
+var
+  i: integer;
+  Client: TPipeClientSimple;
+  s: AnsiString;
+  DataStream: TMemoryStream;
 begin
-  // CanClose:= not cbPipeServerAktiv.Checked;
-  CanClose := true;
+  FreeOnTerminate := true;
+
+  Client := TPipeClientSimple.Create(csPipeName);
+  try
+    for i := 1 to 100 do
+    begin
+      // Senden
+      DataStream := TMemoryStream.Create;
+      try
+        s := AnsiString(format('Test %d aus Thread %d', [i, self.ThreadID]));
+        DataStream.Write(s[Low(s)], length(s));
+        Client.SendStream(DataStream);
+      finally
+        FreeAndNil(DataStream);
+      end;
+
+      // Empfangen
+      repeat
+        DataStream := Client.ReceiveStream;
+      until Assigned(DataStream);
+      // Quick & dirty ausgeben
+      PostMessage(application.MainForm.handle, WM_OUTPUTRECEIVED, 0,
+        LParam(DataStream));
+    end;
+  finally
+    FreeAndNil(Client);
+  end;
+
 end;
 
-procedure TfrmPipeTest.FormCreate(Sender: TObject);
+procedure TfrmPipeTest.btnThreadedClick(Sender: TObject);
+var
+  i: integer;
 begin
-  FClientMessageCount := 0;
+  for i := 1 to edThreadCount.Value do
+  begin
+    // Quick & dirty Fire & Forget
+    TTestThread.Create;
+  end;
 end;
 
-initialization
-
-finalization
-
-FreeAndNil(PipeClient);
+// ==============================================================================
 
 end.

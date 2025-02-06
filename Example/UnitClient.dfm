@@ -90,7 +90,6 @@ object frmPipeTest: TfrmPipeTest
       Width = 75
       Height = 25
       Caption = 'btnThreaded'
-      Enabled = False
       TabOrder = 5
       OnClick = btnThreadedClick
     end
@@ -99,11 +98,10 @@ object frmPipeTest: TfrmPipeTest
       Top = 26
       Width = 121
       Height = 22
-      Enabled = False
       MaxValue = 99
       MinValue = 1
       TabOrder = 6
-      Value = 0
+      Value = 5
     end
   end
 end
