@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899.12.30 00:00:00.000.609,D:\Data_Github\DelphiLazarus_NamedPipes\Example2\UnitServer.dfm=D:\Data_Github\DelphiLazarus_NamedPipes\Example2\Unit1.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.824,D:\Data_Github\DelphiLazarus_NamedPipes\pipeclient_unit.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.609,D:\Data_Github\DelphiLazarus_NamedPipes\Example2\UnitServer.pas=D:\Data_Github\DelphiLazarus_NamedPipes\Example2\Unit1.pas</Transaction>
+  </Transactions>
+</BorlandProject>
