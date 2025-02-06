@@ -89,9 +89,11 @@ implementation
 
 class function TPipeClientHelper.PipeClientCreateInstance
   (sPipeName: string): THandle;
-var
+(*
   FSA: SECURITY_ATTRIBUTES;
   FSD: SECURITY_DESCRIPTOR;
+*)
+var
   LERR: Integer;
 
   I: Integer;
@@ -106,11 +108,13 @@ begin
     The SetSecurityDescriptorDacl function sets information in a discretionary access control list (DACL).
     If a DACL is already present in the security descriptor, the DACL is replaced.
   *)
+  (*
   InitializeSecurityDescriptor(@FSD, SECURITY_DESCRIPTOR_REVISION);
   SetSecurityDescriptorDacl(@FSD, true, nil, false);
   FSA.lpSecurityDescriptor := @FSD;
   FSA.nLength := sizeof(SECURITY_ATTRIBUTES);
   FSA.bInheritHandle := true;
+  *)
 
   I := 0;
   while (Result = INVALID_HANDLE_VALUE) and (I < 25) do
@@ -126,7 +130,7 @@ begin
     Result := CreateFile(PChar('\\.\pipe\' + sPipeName), GENERIC_READ or
       GENERIC_WRITE, // Lesen/Schreiben
       0, // kein Sharing
-      @FSA, // Attribute (Sicherheit)
+      Nil(*@FSA*), // Attribute (Sicherheit, ob der Handle an einen Subprozess übergeben werden kann oder nicht)
       OPEN_EXISTING, // nur auf vorhandene Pipe verbinden
       0, // n.v.
       0); // n.v.

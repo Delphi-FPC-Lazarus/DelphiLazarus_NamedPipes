@@ -97,9 +97,10 @@ begin
 end;
 
 function TPipeServer.PipeServerCreateInstance: THandle;
-var
+(*var
   FSA: SECURITY_ATTRIBUTES;
   FSD: SECURITY_DESCRIPTOR;
+*)
 begin
   (*
     https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-initializesecuritydescriptor
@@ -109,11 +110,13 @@ begin
     The SetSecurityDescriptorDacl function sets information in a discretionary access control list (DACL).
     If a DACL is already present in the security descriptor, the DACL is replaced.
   *)
+  (*
   InitializeSecurityDescriptor(@FSD, SECURITY_DESCRIPTOR_REVISION);
   SetSecurityDescriptorDacl(@FSD, true, nil, False);
   FSA.lpSecurityDescriptor := @FSD;
   FSA.nLength := sizeof(SECURITY_ATTRIBUTES);
   FSA.bInheritHandle := true;
+  *)
 
   (*
     https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea
@@ -132,7 +135,7 @@ begin
     MAXDWORD, // Ausgangsbuffer vom Betriebssystem verwaltet
     MAXDWORD, // Eingangsbuffer vom Betriebssystem verwaltet
     10000, // Timeout
-    @FSA); // Attribute (Sicherheit)
+    Nil(*@FSA*)); // Attribute (Sicherheit, ob der Handle an einen Subprozess übergeben werden kann oder nicht)
 
   if Result = INVALID_HANDLE_VALUE then
     raise Exception.Create(rsCouldNotCreateInterfacePipe);
