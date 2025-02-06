@@ -1,6 +1,7 @@
 {
   PipeClient
   https://learn.microsoft.com/de-de/windows/win32/api/namedpipeapi/
+  https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/
 
   Der Code für das Datenhandling kann im OnReceive Event eingehängt werden.
 
@@ -18,8 +19,7 @@
 
 }
 
-{$i ..\share_settings.inc}
-
+{$I ..\share_settings.inc}
 unit pipeclient_unit;
 
 interface
@@ -34,9 +34,9 @@ type
   TPipeClient = class(TThread)
   private
     FPipeName: string;
-    bFinished: Boolean;
-    FPipeClientDataEvent: TPipeClientDataEvent;
     FPipeHandleClient: THandle;
+    FbFinished: Boolean;
+    FPipeClientDataEvent: TPipeClientDataEvent;
   private
     // Pipe
     procedure PipeClientCreateInstance;
@@ -67,7 +67,8 @@ constructor TPipeClient.Create(PipeClientPipeName: string);
 begin
   inherited Create(true);
   FPipeName := PipeClientPipeName;
-  bFinished := false;
+  FbFinished := false;
+  FPipeClientDataEvent := nil;
 
   // Pipe verbinden
   FPipeHandleClient := INVALID_HANDLE_VALUE;
@@ -92,9 +93,14 @@ var
 
   I: Integer;
 begin
-  // https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
-  // https://docs.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-setsecuritydescriptordacl
-  // https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea
+  (*
+    https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-initializesecuritydescriptor
+    The InitializeSecurityDescriptor function initializes a new security descriptor.
+
+    https://docs.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-setsecuritydescriptordacl
+    The SetSecurityDescriptorDacl function sets information in a discretionary access control list (DACL).
+    If a DACL is already present in the security descriptor, the DACL is replaced.
+  *)
   InitializeSecurityDescriptor(@FSD, SECURITY_DESCRIPTOR_REVISION);
   SetSecurityDescriptorDacl(@FSD, true, nil, false);
   FSA.lpSecurityDescriptor := @FSD;
@@ -105,6 +111,14 @@ begin
   FPipeHandleClient := INVALID_HANDLE_VALUE;
   while (FPipeHandleClient = INVALID_HANDLE_VALUE) and (I < 10) do
   begin
+    (*
+      https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
+      Creates or opens a file or I/O device.
+      The most commonly used I/O devices are as follows: file, file stream, directory, physical disk, volume,
+      console buffer, tape drive, communications resource, mailslot, and pipe.
+      The function returns a handle that can be used to access the file or device for various types of I/O depending
+      on the file or device and the flags and attributes specified.
+    *)
     FPipeHandleClient := CreateFile(PChar('\\.\pipe\' + FPipeName),
       GENERIC_READ or GENERIC_WRITE, // Lesen/Schreiben
       0, // kein Sharing
@@ -133,8 +147,17 @@ procedure TPipeClient.PipeClientCloseInstance;
 begin
   if FPipeHandleClient <> INVALID_HANDLE_VALUE then
   begin
+    (*
+      https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-disconnectnamedpipe
+      Disconnects the server end of a named pipe instance from a client process.
+    *)
     DisconnectNamedPipe(FPipeHandleClient);
+    (*
+      https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
+      Closes an open object handle.
+    *)
     CloseHandle(FPipeHandleClient);
+
     FPipeHandleClient := INVALID_HANDLE_VALUE;
   end;
 end;
@@ -145,15 +168,23 @@ var
   dw: DWORD;
   rcv: TMemoryStream;
 begin
+  (*
+    https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-peeknamedpipe
+    Copies data from a named or anonymous pipe into a buffer without removing it from the pipe. It also returns information about data in the pipe.
+  *)
   if PeekNamedPipe(FPipeHandleClient, nil, 0, nil, @lpTotalBytesAvail,
     @lpBytesLeftThisMessage) then
   begin
-    if (lpBytesLeftThisMessage > 0) then
     // lpTotalBytesAvail kann größer sein wenn mehr messages anstehen
+    if (lpBytesLeftThisMessage > 0) then
     begin
       rcv := TMemoryStream.Create;
       try
         rcv.SetSize(lpBytesLeftThisMessage);
+        (*
+          https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile
+          Reads data from the specified file or input/output (I/O) device. Reads occur at the position specified by the file pointer if supported by the device.
+        *)
         ReadFile(FPipeHandleClient, rcv.Memory^,
           lpBytesLeftThisMessage, dw, nil);
         if Assigned(FPipeClientDataEvent) then
@@ -173,13 +204,17 @@ var
 begin
   if FPipeHandleClient <> INVALID_HANDLE_VALUE then
   begin
+    (*
+      https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
+      Writes data to the specified file or input/output (I/O) device.
+    *)
     WriteFile(FPipeHandleClient, SendStream.Memory^, SendStream.Size, dw, nil);
   end;
 end;
 
 function TPipeClient.GetTerminated: Boolean;
 begin
-  Result := inherited Terminated or bFinished;
+  Result := inherited Terminated or FbFinished;
 end;
 
 procedure TPipeClient.Execute;
@@ -189,7 +224,7 @@ begin
   // nicht eigenständig auflösen, darum kümmert sich der Ersteller
   FreeOnTerminate := false;
 
-  bFinished := false;
+  FbFinished := false;
   LERR := 0;
   while (not Terminated) and (LERR <> ERROR_BROKEN_PIPE) and
     (LERR <> ERROR_PIPE_NOT_CONNECTED) do
@@ -203,7 +238,7 @@ begin
     // wegen Abbruchprüfung immer den GetLastError prüfen (im Leerlauf durch PeekNamedPipe ausgelöst)
     LERR := GetLastError;
   end;
-  bFinished := true;
+  FbFinished := true;
 end;
 
 end.
