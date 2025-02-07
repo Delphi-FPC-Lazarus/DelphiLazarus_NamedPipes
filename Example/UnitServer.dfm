@@ -1,4 +1,4 @@
-object frmPipeTest: TfrmPipeTest
+object frmPipeTestServer: TfrmPipeTestServer
   Left = 0
   Top = 0
   BorderStyle = bsSingle

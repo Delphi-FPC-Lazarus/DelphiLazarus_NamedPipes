@@ -129,7 +129,7 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="UnitServer.pas">
-            <Form>frmPipeTest</Form>
+            <Form>frmPipeTestServer</Form>
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\pipeserver_unit.pas"/>

@@ -14,7 +14,7 @@ const
   csPipeName: string = 'TestPipe';
 
 type
-  TfrmPipeTest = class(TForm)
+  TfrmPipeTestClient = class(TForm)
     GroupBox2: TGroupBox;
     btnClientErzeugen: TButton;
     ListBoxReceived: TListBox;
@@ -43,21 +43,21 @@ type
   end;
 
 var
-  frmPipeTest: TfrmPipeTest;
+  frmPipeTestClient: TfrmPipeTestClient;
 
 implementation
 
 {$R *.dfm}
 // ==============================================================================
 
-procedure TfrmPipeTest.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TfrmPipeTestClient.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   // CanClose:= not cbPipeServerAktiv.Checked;
   FreeAndNil(FPipeClient);
   CanClose := true;
 end;
 
-procedure TfrmPipeTest.FormCreate(Sender: TObject);
+procedure TfrmPipeTestClient.FormCreate(Sender: TObject);
 begin
   Caption := csPipeName;
 
@@ -67,7 +67,7 @@ end;
 
 // ==============================================================================
 
-procedure TfrmPipeTest.btnClientErzeugenClick(Sender: TObject);
+procedure TfrmPipeTestClient.btnClientErzeugenClick(Sender: TObject);
 begin
   // Hier im Test nur ein Client, können aber auch mehrere sein
   if Assigned(FPipeClient) then
@@ -79,12 +79,12 @@ begin
   FPipeClient.Start;
 end;
 
-procedure TfrmPipeTest.btnClientFreigebenClick(Sender: TObject);
+procedure TfrmPipeTestClient.btnClientFreigebenClick(Sender: TObject);
 begin
   FreeAndNil(FPipeClient);
 end;
 
-procedure TfrmPipeTest.btnClientSendenClick(Sender: TObject);
+procedure TfrmPipeTestClient.btnClientSendenClick(Sender: TObject);
 var
   s: AnsiString;
   SendStream: TMemoryStream;
@@ -120,7 +120,7 @@ begin
   end;
 end;
 
-procedure TfrmPipeTest.DoOnClientReceive(Sender: TThread;
+procedure TfrmPipeTestClient.DoOnClientReceive(Sender: TThread;
   ReceivedStream: TMemoryStream);
 var
   DataStream: TMemoryStream;
@@ -135,7 +135,7 @@ begin
   PostMessage(handle, WM_OUTPUTRECEIVED, 0, LParam(DataStream));
 end;
 
-procedure TfrmPipeTest.OutputReceived(Var aMsg: tMessage);
+procedure TfrmPipeTestClient.OutputReceived(Var aMsg: tMessage);
 var
   DataStream: TMemoryStream;
   s: AnsiString;
@@ -209,7 +209,7 @@ begin
 
 end;
 
-procedure TfrmPipeTest.btnThreadedClick(Sender: TObject);
+procedure TfrmPipeTestClient.btnThreadedClick(Sender: TObject);
 var
   i: integer;
 begin

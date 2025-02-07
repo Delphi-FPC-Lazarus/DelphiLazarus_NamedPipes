@@ -2,7 +2,7 @@ program Test_PipeServer;
 
 uses
   Vcl.Forms,
-  UnitServer in 'UnitServer.pas' {frmPipeTest},
+  UnitServer in 'UnitServer.pas' {frmPipeTestServer},
   pipeserver_unit in '..\pipeserver_unit.pas';
 
 {$R *.res}
@@ -12,6 +12,6 @@ begin
 
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.CreateForm(TfrmPipeTest, frmPipeTest);
+  Application.CreateForm(TfrmPipeTestServer, frmPipeTestServer);
   Application.Run;
 end.

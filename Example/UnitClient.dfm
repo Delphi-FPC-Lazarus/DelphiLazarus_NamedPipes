@@ -1,8 +1,8 @@
-object frmPipeTest: TfrmPipeTest
+object frmPipeTestClient: TfrmPipeTestClient
   Left = 0
   Top = 0
   Caption = 'TestPipeClient'
-  ClientHeight = 538
+  ClientHeight = 294
   ClientWidth = 614
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET

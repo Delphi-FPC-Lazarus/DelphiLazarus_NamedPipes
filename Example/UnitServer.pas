@@ -12,7 +12,7 @@ const
   csPipeName: string = 'TestPipe';
 
 type
-  TfrmPipeTest = class(TForm)
+  TfrmPipeTestServer = class(TForm)
     GroupBox1: TGroupBox;
     cbPipeServerAktiv: TCheckBox;
     TimerClientcount: TTimer;
@@ -33,7 +33,7 @@ type
   end;
 
 var
-  frmPipeTest: TfrmPipeTest;
+  frmPipeTestServer: TfrmPipeTestServer;
 
 implementation
 
@@ -41,14 +41,14 @@ implementation
 
 // ==============================================================================
 
-procedure TfrmPipeTest.FormCreate(Sender: TObject);
+procedure TfrmPipeTestServer.FormCreate(Sender: TObject);
 begin
   Caption := csPipeName;
 
   FPipeServer:= nil;
 end;
 
-procedure TfrmPipeTest.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TfrmPipeTestServer.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   // CanClose:= not cbPipeServerAktiv.Checked;
   FreeAndNil(FPipeServer);
@@ -57,7 +57,7 @@ end;
 
 // ==============================================================================
 
-procedure TfrmPipeTest.cbPipeServerAktivClick(Sender: TObject);
+procedure TfrmPipeTestServer.cbPipeServerAktivClick(Sender: TObject);
 begin
   if cbPipeServerAktiv.Checked then
   begin
@@ -71,7 +71,7 @@ begin
   end;
 end;
 
-procedure TfrmPipeTest.DoOnServerReceive(Sender: TThread;
+procedure TfrmPipeTestServer.DoOnServerReceive(Sender: TThread;
   ReceivedStream, SendStream: TMemoryStream);
 (*Debug var s:AnsiString;*)
 begin
@@ -90,7 +90,7 @@ end;
 
 // ==============================================================================
 
-procedure TfrmPipeTest.TimerClientcountTimer(Sender: TObject);
+procedure TfrmPipeTestServer.TimerClientcountTimer(Sender: TObject);
 begin
   if Assigned(FPipeServer) then
   begin

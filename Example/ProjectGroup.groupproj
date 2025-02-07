@@ -9,6 +9,9 @@
         <Projects Include="Test_PipeClient.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Test_PipeBoth.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -35,14 +38,23 @@
     <Target Name="Test_PipeClient:Make">
         <MSBuild Projects="Test_PipeClient.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Test_PipeBoth">
+        <MSBuild Projects="Test_PipeBoth.dproj"/>
+    </Target>
+    <Target Name="Test_PipeBoth:Clean">
+        <MSBuild Projects="Test_PipeBoth.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Test_PipeBoth:Make">
+        <MSBuild Projects="Test_PipeBoth.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Test_PipeServer;Test_PipeClient"/>
+        <CallTarget Targets="Test_PipeServer;Test_PipeClient;Test_PipeBoth"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Test_PipeServer:Clean;Test_PipeClient:Clean"/>
+        <CallTarget Targets="Test_PipeServer:Clean;Test_PipeClient:Clean;Test_PipeBoth:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Test_PipeServer:Make;Test_PipeClient:Make"/>
+        <CallTarget Targets="Test_PipeServer:Make;Test_PipeClient:Make;Test_PipeBoth:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
