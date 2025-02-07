@@ -20,11 +20,13 @@ type
     ListBoxReceived: TListBox;
     btnClientSenden: TButton;
     btnClientFreigeben: TButton;
-    lblmessagecount: TLabel;
     RadioGroupSendeDaten: TRadioGroup;
-    Label3: TLabel;
     btnThreaded: TButton;
     edThreadCount: TSpinEdit;
+    Label1: TLabel;
+    lblmessagecount: TLabel;
+    Label3: TLabel;
+    Label2: TLabel;
     procedure btnClientFreigebenClick(Sender: TObject);
     procedure btnClientSendenClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -104,7 +106,7 @@ begin
       case RadioGroupSendeDaten.ItemIndex of
         0:
           begin
-            s := 'Das ist ein Test ' + AnsiString(inttostr(i)) + #0;
+            s := 'Das ist ein Test ' + AnsiString(inttostr(i))+';';
             SendStream.Write(s[Low(s)], length(s));
           end;
         1:
@@ -178,7 +180,7 @@ begin
       // Senden
       SendDataStream := TMemoryStream.Create;
       try
-        s := AnsiString(format('Test %d aus Thread %d', [i, self.ThreadID]));
+        s := AnsiString(format('Thread %d Message Test %d', [self.ThreadID, i]));
         SendDataStream.Write(s[Low(s)], length(s));
         Client.SendStream(SendDataStream);
 
@@ -187,13 +189,13 @@ begin
           ReceivedDataStream := Client.ReceiveStream;
         until Assigned(ReceivedDataStream);
 
-        // Prüfen
-        if (SendDataStream.Size <> ReceivedDataStream.Size) or
-          (CompareMem(SendDataStream.Memory, ReceivedDataStream.Memory,
-          SendDataStream.Size) = false) then
-        begin
-          raise Exception.Create('Comparemem Fehler!');
-        end;
+        // Prüfen im Falle eines einfachen Echo Servers
+        //if (SendDataStream.Size <> ReceivedDataStream.Size) or
+        //  (CompareMem(SendDataStream.Memory, ReceivedDataStream.Memory,
+        //  SendDataStream.Size) = false) then
+        //begin
+        //  raise Exception.Create('Comparemem Fehler!');
+        //end;
 
         // Quick & dirty ausgeben
         PostMessage(application.MainForm.handle, WM_OUTPUTRECEIVED, 0,

@@ -109,11 +109,11 @@ begin
     If a DACL is already present in the security descriptor, the DACL is replaced.
   *)
   (*
-  InitializeSecurityDescriptor(@FSD, SECURITY_DESCRIPTOR_REVISION);
-  SetSecurityDescriptorDacl(@FSD, true, nil, false);
-  FSA.lpSecurityDescriptor := @FSD;
-  FSA.nLength := sizeof(SECURITY_ATTRIBUTES);
-  FSA.bInheritHandle := true;
+    InitializeSecurityDescriptor(@FSD, SECURITY_DESCRIPTOR_REVISION);
+    SetSecurityDescriptorDacl(@FSD, true, nil, false);
+    FSA.lpSecurityDescriptor := @FSD;
+    FSA.nLength := sizeof(SECURITY_ATTRIBUTES);
+    FSA.bInheritHandle := true;
   *)
 
   I := 0;
@@ -130,7 +130,8 @@ begin
     Result := CreateFile(PChar('\\.\pipe\' + sPipeName), GENERIC_READ or
       GENERIC_WRITE, // Lesen/Schreiben
       0, // kein Sharing
-      Nil(*@FSA*), // Attribute (Sicherheit, ob der Handle an einen Subprozess übergeben werden kann oder nicht)
+      Nil (* @FSA *) ,
+      // Attribute (Sicherheit, ob der Handle an einen Subprozess übergeben werden kann oder nicht)
       OPEN_EXISTING, // nur auf vorhandene Pipe verbinden
       0, // n.v.
       0); // n.v.
@@ -167,7 +168,7 @@ class function TPipeClientHelper.PipeClientCheckReceive(hPipeHandle: THandle)
   : TMemoryStream;
 var
   lpTotalBytesAvail, lpBytesLeftThisMessage: DWORD;
-  dw: DWORD;
+  bytesToRead, res: DWORD;
 begin
   Result := nil;
   (*
@@ -177,16 +178,22 @@ begin
   if PeekNamedPipe(hPipeHandle, nil, 0, nil, @lpTotalBytesAvail,
     @lpBytesLeftThisMessage) then
   begin
-    // lpTotalBytesAvail kann größer sein wenn mehr messages anstehen
+    // message modus:     lpBytesLeftThisMessage > 0, lpBytesLeftThisMessage kann größer sein wenn mehr messages anstehen
+    // bytestream modus:  lpBytesLeftThisMessage = 0, lpBytesLeftThisMessage beinhaltet die anzahl der anstehenden daten
     if (lpBytesLeftThisMessage > 0) then
+      bytesToRead := lpBytesLeftThisMessage
+    else
+      bytesToRead := lpTotalBytesAvail;
+
+    if (bytesToRead > 0) then
     begin
       Result := TMemoryStream.Create;
-      Result.SetSize(lpBytesLeftThisMessage);
+      Result.SetSize(bytesToRead);
       (*
         https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile
         Reads data from the specified file or input/output (I/O) device. Reads occur at the position specified by the file pointer if supported by the device.
       *)
-      ReadFile(hPipeHandle, Result.Memory^, lpBytesLeftThisMessage, dw, nil);
+      ReadFile(hPipeHandle, Result.Memory^, bytesToRead, res, nil);
     end;
   end;
 end;

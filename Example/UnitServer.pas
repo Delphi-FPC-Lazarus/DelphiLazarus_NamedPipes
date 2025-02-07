@@ -18,6 +18,7 @@ type
     TimerClientcount: TTimer;
     lblclientcount: TLabel;
     Label2: TLabel;
+    rgPipeMode: TRadioGroup;
     procedure cbPipeServerAktivClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure TimerClientcountTimer(Sender: TObject);
@@ -38,20 +39,25 @@ var
 implementation
 
 {$R *.dfm}
-
 // ==============================================================================
 
 procedure TfrmPipeTestServer.FormCreate(Sender: TObject);
 begin
   Caption := csPipeName;
 
-  FPipeServer:= nil;
+  FPipeServer := nil;
 end;
 
-procedure TfrmPipeTestServer.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TfrmPipeTestServer.FormCloseQuery(Sender: TObject;
+  var CanClose: Boolean);
 begin
   // CanClose:= not cbPipeServerAktiv.Checked;
-  FreeAndNil(FPipeServer);
+  if assigned(FPipeServer) then
+  begin
+    FPipeServer.Terminate;
+    Sleep(1000);
+    FreeAndNil(FPipeServer);
+  end;
   CanClose := true;
 end;
 
@@ -61,19 +67,24 @@ procedure TfrmPipeTestServer.cbPipeServerAktivClick(Sender: TObject);
 begin
   if cbPipeServerAktiv.Checked then
   begin
-    FPipeServer := TPipeServer.Create(csPipeName);
+    rgPipeMode.Enabled:= False;
+    case rgPipeMode.ItemIndex of
+      0: FPipeServer := TPipeServer.Create(csPipeName, pipeModeByte);
+      1: FPipeServer := TPipeServer.Create(csPipeName, pipeModeMessage);
+    end;
     FPipeServer.OnReceive := DoOnServerReceive;
     FPipeServer.Start;
   end
   else
   begin
+    rgPipeMode.Enabled:= true;
     FreeAndNil(FPipeServer);
   end;
 end;
 
 procedure TfrmPipeTestServer.DoOnServerReceive(Sender: TThread;
   ReceivedStream, SendStream: TMemoryStream);
-(*Debug var s:AnsiString;*)
+(* Debug var s:AnsiString; *)
 begin
   // Datenevent des Servers
   // ACHTUNG: hier bin ich noch im Thread, daher kann hier nicht unsynchronisiert auf die UI zugegriffen werden
@@ -81,10 +92,10 @@ begin
   SendStream.CopyFrom(ReceivedStream, SendStream.Size);
 
   (* Debug
-  SendStream.Position:= 0;
-  SetLength(s, SendStream.Size);
-  SendStream.Read(s[Low(s)], SendStream.Size);
-  SendStream.Position:= 0;
+    SendStream.Position:= 0;
+    SetLength(s, SendStream.Size);
+    SendStream.Read(s[Low(s)], SendStream.Size);
+    SendStream.Position:= 0;
   *)
 end;
 
@@ -92,7 +103,7 @@ end;
 
 procedure TfrmPipeTestServer.TimerClientcountTimer(Sender: TObject);
 begin
-  if Assigned(FPipeServer) then
+  if assigned(FPipeServer) then
   begin
     lblclientcount.Caption := inttostr(FPipeServer.ClientCount);
   end;

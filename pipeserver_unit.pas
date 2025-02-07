@@ -35,9 +35,12 @@ type
   TPipeServerDataEvent = procedure(Sender: TThread;
     ReceivedStream, SendStream: TMemoryStream) of object;
 
+  TPipeServerMode = (pipeModeByte, pipeModeMessage);
+
   TPipeServer = class(TThread)
   private
     FPipeName: string;
+    FPipeMode: TPipeServerMode;
     FPipeServerDataEvent: TPipeServerDataEvent;
     FPipeServerIOHandlers: TObjectList<TThread>;
     FPipeServerIOHandlersLock: TCriticalSection;
@@ -53,7 +56,7 @@ type
   protected
     procedure Execute; override;
   public
-    constructor Create(PipeServerPipeName: string);
+    constructor Create(PipeServerPipeName: string; pipeMode: TPipeServerMode);
 
     property ClientCount: integer read GetClientCount;
     property PipeName: string read FPipeName;
@@ -77,10 +80,12 @@ implementation
 
 // ================================================================
 
-constructor TPipeServer.Create(PipeServerPipeName: string);
+constructor TPipeServer.Create(PipeServerPipeName: string;
+  pipeMode: TPipeServerMode);
 begin
   inherited Create(true);
   FPipeName := PipeServerPipeName;
+  FPipeMode := pipeMode;
   FPipeServerDataEvent := nil;
 
   // Start;
@@ -97,10 +102,12 @@ begin
 end;
 
 function TPipeServer.PipeServerCreateInstance: THandle;
-(*var
+(*
   FSA: SECURITY_ATTRIBUTES;
   FSD: SECURITY_DESCRIPTOR;
 *)
+var
+  PIPE_TYPE: Cardinal;
 begin
   (*
     https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-initializesecuritydescriptor
@@ -111,11 +118,11 @@ begin
     If a DACL is already present in the security descriptor, the DACL is replaced.
   *)
   (*
-  InitializeSecurityDescriptor(@FSD, SECURITY_DESCRIPTOR_REVISION);
-  SetSecurityDescriptorDacl(@FSD, true, nil, False);
-  FSA.lpSecurityDescriptor := @FSD;
-  FSA.nLength := sizeof(SECURITY_ATTRIBUTES);
-  FSA.bInheritHandle := true;
+    InitializeSecurityDescriptor(@FSD, SECURITY_DESCRIPTOR_REVISION);
+    SetSecurityDescriptorDacl(@FSD, true, nil, False);
+    FSA.lpSecurityDescriptor := @FSD;
+    FSA.nLength := sizeof(SECURITY_ATTRIBUTES);
+    FSA.bInheritHandle := true;
   *)
 
   (*
@@ -123,19 +130,46 @@ begin
     Creates an instance of a named pipe and returns a handle for subsequent pipe operations.
     A named pipe server process uses this function either to create the first instance of a specific named pipe
     and establish its basic attributes or to create a new instance of an existing named pipe.
+
+    https://learn.microsoft.com/de-de/windows/win32/ipc/named-pipe-type-read-and-wait-modes
+    To create a byte-type pipe, specify PIPE_TYPE_BYTE or use the default value.
+    The data is written to the pipe as a stream of bytes, and the system does not differentiate between the bytes written
+    in different write operations.
+
+    To create a message-type pipe, specify PIPE_TYPE_MESSAGE.
+    The system treats the bytes written in each write operation to the pipe as a message unit.
+    The system always performs write operations on message-type pipes as if write-through mode were enabled.
   *)
+
+  PIPE_TYPE := 0;
+  case FPipeMode of
+    pipeModeByte:
+      begin
+        PIPE_TYPE := PIPE_TYPE_BYTE or
+        // jeden Schreibvorgang einfach als bytestream
+          PIPE_READMODE_BYTE; // Lesen auch als continuierlichen Bytestream
+      end;
+    pipeModeMessage:
+      begin
+        PIPE_TYPE := PIPE_TYPE_MESSAGE or
+        // jeder Schreibvorgang als MessageEinheit behandeln
+          PIPE_READMODE_MESSAGE; // Lesen auch als MessageEinheit
+
+      end;
+  end;
+
   Result := CreateNamedPipe(PChar('\\.\pipe\' + FPipeName),
     PIPE_ACCESS_DUPLEX or // Lesen/Schreiben
     FILE_FLAG_WRITE_THROUGH, // nur für Netzwerk relevant
-    PIPE_TYPE_MESSAGE or // jeder Schreibvorgang als MessageEinheit behandeln
-    PIPE_READMODE_MESSAGE or // Lesen auch als MessageEinheit
+    PIPE_TYPE or // Modus Byte oder Message
     PIPE_NOWAIT, // nicht blocken
     PIPE_UNLIMITED_INSTANCES,
     // Pipe begrenzung abgeschaltet, 1 erlaubt nur eine paralle Instanz und würde ERROR_PIPE_BUSY liefern
     MAXDWORD, // Ausgangsbuffer vom Betriebssystem verwaltet
     MAXDWORD, // Eingangsbuffer vom Betriebssystem verwaltet
     10000, // Timeout
-    Nil(*@FSA*)); // Attribute (Sicherheit, ob der Handle an einen Subprozess übergeben werden kann oder nicht)
+    Nil (* @FSA *) );
+  // Attribute (Sicherheit, ob der Handle an einen Subprozess übergeben werden kann oder nicht)
 
   if Result = INVALID_HANDLE_VALUE then
     raise Exception.Create(rsCouldNotCreateInterfacePipe);
@@ -288,7 +322,7 @@ procedure TPipeServerIOHandler.Execute;
 var
   LERR: DWORD;
   lpTotalBytesAvail, lpBytesLeftThisMessage: DWORD;
-  dw: DWORD;
+  bytesToRead, res: DWORD;
   rcv, snd: TMemoryStream;
 begin
   // Eigenständig auflösen, OnTerminate wird vorher aufgerufen
@@ -308,19 +342,25 @@ begin
     if PeekNamedPipe(FPipeHandleServer, nil, 0, nil, @lpTotalBytesAvail,
       @lpBytesLeftThisMessage) then
     begin
-      // lpTotalBytesAvail kann größer sein wenn mehr messages anstehen
+      // message modus:     lpBytesLeftThisMessage > 0, lpBytesLeftThisMessage kann größer sein wenn mehr messages anstehen
+      // bytestream modus:  lpBytesLeftThisMessage = 0, lpBytesLeftThisMessage beinhaltet die anzahl der anstehenden daten
       if (lpBytesLeftThisMessage > 0) then
+        bytesToRead := lpBytesLeftThisMessage
+      else
+        bytesToRead := lpTotalBytesAvail;
+
+      if (bytesToRead > 0) then
       begin
         rcv := TMemoryStream.Create;
         snd := TMemoryStream.Create;
         try
-          rcv.SetSize(lpBytesLeftThisMessage);
+          rcv.SetSize(bytesToRead);
           (*
             https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile
             Reads data from the specified file or input/output (I/O) device. Reads occur at the position specified by the file pointer if supported by the device.
           *)
-          if not ReadFile(FPipeHandleServer, rcv.Memory^,
-            lpBytesLeftThisMessage, dw, nil) then
+          if not ReadFile(FPipeHandleServer, rcv.Memory^, bytesToRead, res, nil)
+          then
             raise Exception.Create('Read error');
 
           if Assigned(FPipeServerDataEvent) then
@@ -334,7 +374,7 @@ begin
           *)
           if snd.Size > 0 then
           begin
-            if not WriteFile(FPipeHandleServer, snd.Memory^, snd.Size, dw, nil)
+            if not WriteFile(FPipeHandleServer, snd.Memory^, snd.Size, res, nil)
             then
               raise Exception.Create('Write error');
           end;
