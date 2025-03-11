@@ -27,6 +27,7 @@ type
     lblmessagecount: TLabel;
     Label3: TLabel;
     Label2: TLabel;
+    cbDumpRecivedMessages: TCheckBox;
     procedure btnClientFreigebenClick(Sender: TObject);
     procedure btnClientSendenClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -149,10 +150,17 @@ begin
   DataStream := TMemoryStream(aMsg.LParam);
   if Assigned(DataStream) then
   begin
+    DataStream.Position:= 0;
     SetLength(s, DataStream.Size);
     DataStream.Read(s[Low(s)], DataStream.Size);
-    FreeAndNil(DataStream);
     ListBoxReceived.Items.Add(String(s));
+
+    if cbDumpRecivedMessages.Checked then begin
+      DataStream.Position:= 0;
+      DataStream.SaveToFile('Test_Pipe_Client_'+ FormatDateTime('yyyymmddhhnnsszzz', now)+'_'+inttostr(FClientMessageCount)+'.txt');
+    end;
+
+    FreeAndNil(DataStream);
   end;
 end;
 

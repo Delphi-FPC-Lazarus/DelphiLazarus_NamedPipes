@@ -77,8 +77,6 @@ object frmPipeTestClient: TfrmPipeTestClient
       Align = alBottom
       ItemHeight = 13
       TabOrder = 1
-      ExplicitLeft = 1
-      ExplicitTop = 170
     end
     object btnClientSenden: TButton
       Left = 3
@@ -128,5 +126,13 @@ object frmPipeTestClient: TfrmPipeTestClient
       TabOrder = 6
       Value = 5
     end
+  end
+  object cbDumpRecivedMessages: TCheckBox
+    Left = 337
+    Top = 325
+    Width = 194
+    Height = 17
+    Caption = 'Empfangene Nachrichten speichern'
+    TabOrder = 1
   end
 end
